@@ -1,0 +1,87 @@
+#!/bin/bash
+# Quick n' dirty file transfer utility for professional film/TV DIT workflows
+# By Alex Fichera and Rio Velarde, 2016
+# version=0.9.9 - Windows
+src=$1/
+dest=$2
+mail=$3
+finalDest=$dest/$(basename $src)
+logDest=$dest/LOGS
+IFS="$(printf '\n\t')"
+# Remove SPACE, so filenames with spaces work well.
+#  Correct glob use:
+#+ always use "for" loop, prefix glob, check for existence:
+for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
+	if [ -e “$src” ] ; then    # Make sure it isn't an empty match.
+	COMMAND ... “$src” ...
+	fi
+	if [ -e “$dest” ] ; then    # Make sure it isn't an empty match.
+	COMMAND ... “$dest” ...
+	fi
+done
+
+function postfix_fix() {
+	if /var/packages/MailServer/target/sbin/postfix status; then
+		sudo postfix reload
+	    echo "postfix is running!"
+	else
+		sudo postfix start 
+		echo "postfix is running!"
+	fi
+}
+
+function make_dump() {
+	#The checksum file requires md5deep. Install from homebrew.
+	mkdir -p $dest
+	mkdir -p $logDest #make required directories if they don't exist
+	rsync -prtWvi --stats --partial --no-i-r --progress --log-file=$logDest/templog.txt --log-file-format="%C %n" $src $dest/$(basename $dest)
+	echo "****************************" >> $logDest/COPY_LOG.txt
+	echo $(date) >> $logDest/COPY_LOG.txt
+	sed 's/^.*] //' $logDest/templog.txt >> $logDest/COPY_LOG.txt
+	rm $logDest/templog.txt
+	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
+	echo "THIS LOG IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND DID NOT COPY CORRECTLY" >> $logDest/ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
+	md5deep -e -r -n -s -m $logDest/COPY_LOG.txt $dest >> $logDest/ERROR_LOG.txt
+	echo "Checksum verification complete." $(date) >> $logDest/ERROR_LOG.txt
+	echo "****************************" >> $logDest/COPY_LOG.txt
+	if [[ $mail != "" ]] ; then
+		postfix_fix > /dev/null 2>&1 #check if mail is running, suppress output
+		mail -s "ARdump COPY IS COMPLETE!" $mail < $logDest/ERROR_LOG.txt
+	fi
+}
+
+function usage() {
+	echo "ARdump $version"
+	echo "Usage : ARdump <source> <destination>"
+	echo "ARdump will copy files from one location to another and verify the md5 checksums using"
+	echo "rsync and md5deep. It will output a copy log and an error log."
+}
+
+if [[ $2 == "" ]] ; then
+	usage
+	exit
+fi
+
+if [[ ! -d $dest ]]; then
+ 	#  # Control will enter here if $dest doesn't exist.
+	make_dump
+elif [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
+  # Control will enter here if $dest exists and is not empty.
+  echo #new line
+  echo "WHOAH! This directory exists and is not empty. If you have files of the same NAME and DIFFERENT size in the destination directory they will be overwritten."
+  echo "***Enter 'yyy' to continue***"
+  echo "Enter anything else to cancel."
+  read input
+  if [[ $input == "yyy" ]] ; then
+	  make_dump
+	  	exit
+	fi
+elif [[ "$(ls -A $dest)" == '' ]] ; then
+	#control enters here if direcotry exists but is empyty
+	echo "Directory is empty. Safe to copy."
+	make_dump
+else
+	"Error. Try running rsync by itself. Or give up and use Shotput."
+	exit
+fi

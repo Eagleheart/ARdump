@@ -20,16 +20,6 @@ for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
 	fi
 done
 
-function postfix_fix() {
-	if /var/packages/MailServer/target/sbin/postfix status; then
-		sudo postfix reload
-	    echo "postfix is running!"
-	else
-		sudo postfix start 
-		echo "postfix is running!"
-	fi
-}
-
 function make_dump() {
 	#The checksum file requires md5deep. Install from homebrew.
 	mkdir -p $dest
@@ -39,6 +29,9 @@ function make_dump() {
 	echo $(date) >> $logDest/COPY_LOG.txt
 	sed 's/^.*] //' $logDest/templog.txt >> $logDest/COPY_LOG.txt
 	rm $logDest/templog.txt
+	if [[ $mail != "" ]] ; then
+		echo "The transfer from $src to $dest is complete. Now beginning checksum..." | cat - $logDest/COPY_LOG.txt | email -s "ARdump TRANSFER IS COMPLETE!" $mail
+	fi
 	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
 	echo "THIS LOG IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND DID NOT COPY CORRECTLY" >> $logDest/ERROR_LOG.txt
 	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
@@ -46,8 +39,7 @@ function make_dump() {
 	echo "Checksum verification complete." $(date) >> $logDest/ERROR_LOG.txt
 	echo "****************************" >> $logDest/COPY_LOG.txt
 	if [[ $mail != "" ]] ; then
-		postfix_fix > /dev/null 2>&1 #check if mail is running, suppress output
-		mail -s "ARdump COPY IS COMPLETE!" $mail < $logDest/ERROR_LOG.txt
+		echo "The verfication of the $src to $dest transfer is complete!" | cat - $logDest/ERROR_LOG.txt | email -s "ARdump VERIFICATION IS COMPLETE!" $mail
 	fi
 }
 

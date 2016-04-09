@@ -1,12 +1,16 @@
 #!/bin/bash
 # Quick n' dirty file transfer utility for professional film/TV DIT workflows
 # By Alex Fichera and Rio Velarde, 2016
-# version=0.9.9 - Windows
+# version=1.0.3 - Windows
 src=$1/
 dest=$2
 mail=$3
+date=$(date)
 finalDest=$dest/$(basename $src)
-logDest=$dest/LOGS
+logName=$(basename $dest)
+# logName+=".$date"
+logDest=$dest/${logName}_LOGS
+
 IFS="$(printf '\n\t')"
 # Remove SPACE, so filenames with spaces work well.
 #  Correct glob use:
@@ -24,20 +28,43 @@ function make_dump() {
 	#The checksum file requires md5deep. Install from homebrew.
 	mkdir -p $dest
 	mkdir -p $logDest #make required directories if they don't exist
+	
+	echo "This transfer is from $src to $dest" >> $logDest/${logName}_COPY_LOG.txt
+	echo "It is starting at" $(date) >> $logDest/${logName}_COPY_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_COPY_LOG.txt
+	
 	rsync -prtWvi --stats --partial --no-i-r --progress --log-file=$logDest/templog.txt --log-file-format="%C %n" $src $dest/$(basename $dest)
-	echo "****************************" >> $logDest/COPY_LOG.txt
-	echo $(date) >> $logDest/COPY_LOG.txt
-	sed 's/^.*] //' $logDest/templog.txt >> $logDest/COPY_LOG.txt
+	sed 's/^.*] //' $logDest/templog.txt >> $logDest/${logName}_COPY_LOG.txt
 	rm $logDest/templog.txt
+	
+	echo "" >> $logDest/${logName}_COPY_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_COPY_LOG.txt
+	echo "The transfer finished at" $(date) >> $logDest/${logName}_COPY_LOG.txt
+	
 	if [[ $mail != "" ]] ; then
 		echo "The transfer from $src to $dest is complete. Now beginning checksum..." | cat - $logDest/COPY_LOG.txt | email -s "ARdump TRANSFER IS COMPLETE!" $mail
 	fi
-	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
-	echo "THIS LOG IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND DID NOT COPY CORRECTLY" >> $logDest/ERROR_LOG.txt
-	echo "**************************************************************************************************" >> $logDest/ERROR_LOG.txt
-	md5deep -e -r -n -s -m $logDest/COPY_LOG.txt $dest >> $logDest/ERROR_LOG.txt
-	echo "Checksum verification complete." $(date) >> $logDest/ERROR_LOG.txt
-	echo "****************************" >> $logDest/COPY_LOG.txt
+	
+	echo "This error log is for the copy from $src to $dest" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "Error checking began on" $(date) >> $logDest/${logName}_ERROR_LOG.txt
+
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "THIS SECTION SHOWS ERRORS (IF ANY) FROM THE RSYNC TRANSFER" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "WARNING" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "ERROR" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	
+	echo "" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "THIS SECTION IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND MAY NOT HAVE COPIED CORRECTLY" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	
+	md5deep -e -r -n -s -m $logDest/${logName}_COPY_LOG.txt $dest >> $logDest/${logName}_ERROR_LOG.txt
+
+	echo "" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "Checksum verification complete." $(date) >> $logDest/${logName}_ERROR_LOG.txt
+	
 	if [[ $mail != "" ]] ; then
 		echo "The verfication of the $src to $dest transfer is complete!" | cat - $logDest/ERROR_LOG.txt | email -s "ARdump VERIFICATION IS COMPLETE!" $mail
 	fi

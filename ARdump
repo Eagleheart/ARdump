@@ -1,7 +1,7 @@
 #!/bin/bash
 # Quick n' dirty file transfer utility for professional film/TV DIT workflows
 # By Alex Fichera and Rio Velarde, 2016
-# version=1.0.3 - Windows
+# version=1.0.5 - Windows
 src=$1/
 dest=$2
 mail=$3
@@ -45,7 +45,10 @@ function make_dump() {
 		echo "The transfer from $src to $dest is complete. Now beginning checksum..." | cat - $logDest/COPY_LOG.txt | email -s "ARdump TRANSFER IS COMPLETE!" $mail
 	fi
 	
+	echo "THIS LOG IS CURRENTLY NOT VALID AS THE CHECKSUM HAS NOT COMPLETED!!!!!" >> $logDest/${logName}_ERROR_LOG.txt
+	
 	echo "This error log is for the copy from $src to $dest" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
 	echo "Error checking began on" $(date) >> $logDest/${logName}_ERROR_LOG.txt
 
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
@@ -64,6 +67,8 @@ function make_dump() {
 	echo "" >> $logDest/${logName}_ERROR_LOG.txt
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
 	echo "Checksum verification complete." $(date) >> $logDest/${logName}_ERROR_LOG.txt
+	
+	tail -n +2 $logDest/${logName}_ERROR_LOG.txt > $logDest/FILE.tmp && mv $logDest/FILE.tmp $logDest/${logName}_ERROR_LOG.txt
 	
 	if [[ $mail != "" ]] ; then
 		echo "The verfication of the $src to $dest transfer is complete!" | cat - $logDest/ERROR_LOG.txt | email -s "ARdump VERIFICATION IS COMPLETE!" $mail

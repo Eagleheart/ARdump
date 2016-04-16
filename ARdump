@@ -48,7 +48,6 @@ function make_dump() {
 	echo "THIS LOG IS CURRENTLY NOT VALID AS THE CHECKSUM HAS NOT COMPLETED!!!!!" >> $logDest/${logName}_ERROR_LOG.txt
 	
 	echo "This error log is for the copy from $src to $dest" >> $logDest/${logName}_ERROR_LOG.txt
-	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
 	echo "Error checking began on" $(date) >> $logDest/${logName}_ERROR_LOG.txt
 
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt

@@ -1,0 +1,134 @@
+#!/bin/bash
+# Quick n' dirty file transfer utility for professional film/TV DIT workflows
+# By Alex Fichera and Rio Velarde, 2016
+# Dependencies: rsync, md5deep, terminal-notifier, postfix
+
+version=1.0.7
+
+[ "$(whoami)" != "root" ] && exec sudo -- "$0" "$@" ] #force to run as root
+src=$1
+dest=$2
+mail=$3
+date=$(date)
+
+IFS="$(printf '\n\t')"
+# Remove SPACE, so filenames with spaces work well.
+#  Correct glob use:
+#+ always use "for" loop, prefix glob, check for existence:
+for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
+	if [ -e “$src” ] ; then    # Make sure it isn't an empty match.
+	COMMAND ... “$src” ...
+	fi
+	if [ -e “$dest” ] ; then    # Make sure it isn't an empty match.
+	COMMAND ... “$dest” ...
+	fi
+done	
+#declaring log vars after removing spaces for parsing
+finalDest=$dest/$(basename $src)
+logName=$(basename ${dest})
+logDest=$dest/${logName}_LOGS
+#logName+=".$date"
+#srcSize=du -d 0 -m $src
+
+function postfix_fix()
+{
+	if /var/packages/MailServer/target/sbin/postfix status; then
+		sudo postfix reload
+	    echo "postfix is running!"
+	else
+		sudo postfix start 
+		echo "postfix is running!"
+	fi
+}
+
+function make_dump()
+{
+	#The checksum file requires md5deep. Install from homebrew.
+	mkdir -p $dest mkdir -p $logDest #make required directories if they don't exist
+	
+	echo "This transfer is from $src to $dest" >> $logDest/${logName}_COPY_LOG.txt
+	echo "It is starting at" $(date) >> $logDest/${logName}_COPY_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_COPY_LOG.txt
+	
+	rsync -prtWvi --stats --partial --no-i-r --progress --log-file=$logDest/templog.txt --log-file-format="%C %n" $src $dest
+	sed 's/^.*] //' $logDest/templog.txt >> $logDest/${logName}_COPY_LOG.txt
+	rm $logDest/templog.txt
+	
+	echo "" >> $logDest/${logName}_COPY_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_COPY_LOG.txt
+	echo "The transfer finished at" $(date) >> $logDest/${logName}_COPY_LOG.txt
+	
+	if [[ $mail != "" ]] ; then
+		postfix_fix > /dev/null 2>&1 #check if mail is running, suppress output
+		mail -s "ARdump TRANSFER IS COMPLETE! Beginning checksum..." $mail < $logDest/${logName}_COPY_LOG.txt
+	fi
+	terminal-notifier -title "ARdump transfer is complete!" -message "Copied $src to $dest"
+
+	echo "THIS LOG IS CURRENTLY NOT VALID AS THE CHECKSUM HAS NOT COMPLETED!!!!!" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	
+	echo "This error log is for the copy from $src to $dest" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "Error checking began on" $(date) >> $logDest/${logName}_ERROR_LOG.txt
+
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "THIS SECTION SHOWS ERRORS (IF ANY) FROM THE RSYNC TRANSFER" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "WARNING" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "ERROR" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "PARTIAL" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	grep -i -n "TIMEOUT" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG.txt
+	
+	echo "" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "THIS SECTION IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND MAY NOT HAVE COPIED CORRECTLY" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	
+	md5deep -e -r -n -s -m $logDest/${logName}_COPY_LOG.txt $dest >> $logDest/${logName}_ERROR_LOG.txt
+	
+	echo "" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG.txt
+	echo "Checksum verification complete." $(date) >> $logDest/${logName}_ERROR_LOG.txt
+	
+	tail -n +2 $logDest/${logName}_ERROR_LOG.txt > $logDest/FILE.tmp && mv $logDest/FILE.tmp $logDest/${logName}_ERROR_LOG.txt
+	
+	if [[ $mail != "" ]] ; then
+		postfix_fix > /dev/null 2>&1 #check if mail is running, suppress output
+		mail -s "ARdump CHECKSUM IS COMPLETE!" $mail < $logDest/${logName}_ERROR_LOG.txt
+	fi
+	terminal-notifier -title "ARdump checksum is complete!" -message "Checksum from $src to $dest"
+}
+
+function usage() {
+	echo "ARdump $version"
+	echo "Usage : ARdump <source> <destination>"
+	echo "ARdump will copy files from one location to another and verify the md5 checksums using"
+	echo "rsync and md5deep. It will output a copy log and an error log."
+}
+
+if [[ $2 == "" ]] ; then
+	usage
+	exit
+fi
+
+if [[ ! -d $dest ]]; then
+ 	#  # Control will enter here if $dest doesn't exist.
+	make_dump
+elif [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
+  # Control will enter here if $dest exists and is not empty.
+  echo #new line
+  echo "WHOAH! This directory exists and is not empty. If you have files of the same NAME and DIFFERENT size in the destination directory they will be overwritten."
+  echo "***Enter 'yyy' to continue***"
+  echo "Enter anything else to cancel."
+  read input
+  if [[ $input == "yyy" ]] ; then
+	  make_dump
+	  	exit
+	fi
+elif [[ "$(ls -A $dest)" == '' ]] ; then
+	#control enters here if direcotry exists but is empyty
+	echo "Directory is empty. Safe to copy."
+	make_dump
+else
+	"Error. Try running rsync by itself. Or give up and use Shotput."
+	exit
+fi

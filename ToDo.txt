@@ -1,6 +1,11 @@
 - Check if source directory exists and output an error / end the script if it does not.
-- Make it work on single files.
 - Add a flag to surpress logfile creation.
+- Change the way we check user arguments so they don't have to be in order
 
 COMPLETE
 - Add warning log to top of error log stating it is not valid. Remove when the checksum is finished.
+- Make multiple error log files to ensure lines aren't being deleted from wrong spaces.
+- Catch all rsync error codes, output an error to the error log and end the script execution if there is one.
+- Catch all MD5Deep error codes and export an error to the error log if there was one.
+- Move logname and logdest variable names to AFTER the space removal loop.
+- Get single file transfers working.

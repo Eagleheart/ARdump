@@ -22,6 +22,11 @@ for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
 	fi
 done
 
+finalDest=$dest/$(basename $src)
+logName=$(basename $dest)
+# logName+=".$date"
+logDest=$dest/${logName}_LOGS
+
 function make_dump() {
 	
 	#The checksum file requires md5deep. Install from homebrew.
@@ -112,23 +117,15 @@ function usage() {
 	echo "Usage : ARdump <source> <destination>"
 	echo "Optional Usage : ARdump <source> <destination> <email>"
 	echo "ARdump will copy files from the source location to the destination location and"
-	echo "verify the md5 checksums created from the source files by rsync and md5deep"
-	echo "matching them with the files in the destination. It will output a copy log and"
-	echo 'an error log. If an email is provided, it will send an email to the given'
-	echo 'address (provided there is an active internet connection) both when the initial'
-	echo 'transfer is complete and when the checksum verification finishes.'
+	echo " verify the md5 checksums created from the source files by rsync and md5deep"
+	echo " matching them with the files in the destination. It will output a copy log and"
+	echo ' an error log.'
 }
 
 if [[ $2 == "" ]] ; then
 	usage
 	exit
 elif [[ -e $src ]] ; then
-	
-	finalDest=$dest/$(basename $src)
-	logName=$(basename $src)
-	# logName+=".$date"
-	logDest=$dest/${logName}_LOGS
-	
 	if [[ ! -d $dest ]]; then
 		#  Control will enter here if $dest doesn't exist.
 		make_dump

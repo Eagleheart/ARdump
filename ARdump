@@ -75,8 +75,8 @@ function make_dump()
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	echo "THIS SECTION SHOWS ERRORS (IF ANY) FROM THE RSYNC TRANSFER" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG_$date.txt
-	grep -i -n "WARNING" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG_$date.txt
-	grep -i -n "ERROR" $logDest/${logName}_COPY_LOG.txt >> $logDest/${logName}_ERROR_LOG_$date.txt
+	grep -i -n "WARNING" $logDest/templog.txt >> $logDest/${logName}_ERROR_LOG_$date.txt
+	grep -i -n "ERROR" $logDest/templog.txt >> $logDest/${logName}_ERROR_LOG_$date.txt
 	rm $logDest/templog.txt
 	echo "" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG_$date.txt

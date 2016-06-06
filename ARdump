@@ -3,9 +3,9 @@
 # By Alex Fichera and Rio Velarde, 2016
 # Dependencies: rsync, md5deep, email
 
-version=1.0.8 # - Windows
+version=1.0.9 # - Windows
 
-src=$1/
+src=$1
 dest=$2
 mail=$3
 date=$(date)
@@ -27,7 +27,7 @@ thePath=$(basename $src)
 thePath+=":"
 
 finalDest=$dest/$(basename $src)
-logName=$(basename $dest)
+logName=$(basename $src)
 # logName+=".$date"
 logDest=$dest/${logName}_LOGS
 
@@ -46,8 +46,8 @@ function make_dump() {
 	rsync -prtWvi --stats --partial --no-i-r --progress --log-file=$logDest/templog.txt --log-file-format="%C %n" $src $dest/$name
 	
 	if [ "$?" -ne "0" ]; then
-		echo "Error: Rsync did not complete execution properly!"
-		echo "RSYNC DID NOT COMPLETE PROPERLY!!!" >> $logDest/${logName}_ERROR_LOG_$date.txt
+		echo "ERROR: Rsync did not complete execution properly!"
+		echo "ERROR: RSYNC DID NOT COMPLETE PROPERLY!!!" >> $logDest/${logName}_ERROR_LOG_$date.txt
 		exit 1
 	fi
 	
@@ -60,7 +60,7 @@ function make_dump() {
 	echo "" >> $logDest/${logName}_COPY_LOG.txt
 	
 	if [[ $mail != "" ]] ; then
-		echo "The transfer from $src to $dest is complete. Now beginning checksum..." | cat - $logDest/COPY_LOG.txt | email -s "ARdump TRANSFER IS COMPLETE!" $mail
+		echo "The transfer from $src to $dest is complete. Now beginning checksum..." | cat - $logDest/${logName}_COPY_LOG.txt | email -s "ARdump TRANSFER IS COMPLETE!" $mail
 	fi
 	
 	echo "THIS LOG IS CURRENTLY NOT VALID AS THE CHECKSUM HAS NOT COMPLETED!!!!!" >> $logDest/${logName}_ERROR_LOG_$date.txt
@@ -79,11 +79,31 @@ function make_dump() {
 	echo "THIS SECTION IS ONLY USED TO SHOW FILES THAT **FAILED** THE HASH CHECK AND MAY NOT HAVE COPIED CORRECTLY" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	echo "**************************************************************************************************" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	
-	md5deep -e -r -n -m $logDest/${logName}_COPY_LOG.txt $dest >> $logDest/${logName}_ERROR_LOG_$date.txt
+	md5deep -e -r -n -m $logDest/${logName}_COPY_LOG.txt $dest >> $logDest/${logName}_ERROR_LOG_$date.txt 2>&1
+	md5res="$?"
 	
-	if [ "$?" -ne "0" ]; then
-		echo "Warning: MD5Deep did not exit clean!"
-		echo "WARNING: MD5Deep did not exit clean!!!" >> $logDest/${logName}_ERROR_LOG_$date.txt
+	sed '/No hash found in line/d' $logDest/${logName}_ERROR_LOG_$date.txt > $logDest/tmp.txt
+	sed '/                                                                          /d' $logDest/tmp.txt > $logDest/${logName}_ERROR_LOG_$date.txt
+	rm $logDest/tmp.txt
+	
+	if [ $md5res -eq "0" ]; then
+		echo "MD5Deep has finished."
+		echo "MD5Deep has finished." >> $logDest/${logName}_ERROR_LOG_$date.txt
+	elif [ $md5res -eq "1" ]; then
+		echo "Warning: One or more of the known hashes was not matched by any of the input files."
+		echo "Warning: One or more of the known hashes was not matched by any of the input files." >> $logDest/${logName}_ERROR_LOG_$date.txt
+	elif [ $md5res -eq "2" ]; then
+		echo "Warning: One or more of the input values did not match any of the known hashes."
+		echo "Warning: One or more of the input values did not match any of the known hashes." >> $logDest/${logName}_ERROR_LOG_$date.txt
+	elif [ $md5res -eq "64" ]; then
+		echo "ERROR: User error."
+		echo "ERROR: User error." >> $logDest/${logName}_ERROR_LOG_$date.txt
+	elif [ $md5res -eq "128" ]; then
+		echo "ERROR: Internal error."
+		echo "ERROR: Internal error." >> $logDest/${logName}_ERROR_LOG_$date.txt
+	else
+		echo "Warning: Unknown return value of MD5Deep!"
+		echo "Warning: Unknown return value of MD5Deep!" >> $logDest/${logName}_ERROR_LOG_$date.txt
 	fi
 
 	echo "" >> $logDest/${logName}_ERROR_LOG_$date.txt
@@ -93,7 +113,7 @@ function make_dump() {
 	tail -n +2 $logDest/${logName}_ERROR_LOG_$date.txt > $logDest/FILE.tmp && mv $logDest/FILE.tmp $logDest/${logName}_ERROR_LOG_$date.txt
 	
 	if [[ $mail != "" ]] ; then
-		echo "The verfication of the $src to $dest transfer is complete!" | cat - $logDest/ERROR_LOG.txt | email -s "ARdump VERIFICATION IS COMPLETE!" $mail
+		echo "The verfication of the $src to $dest transfer is complete!" | cat - $logDest/${logName}_ERROR_LOG_$date.txt | email -s "ARdump VERIFICATION IS COMPLETE!" $mail
 	fi
 }
 
@@ -107,27 +127,30 @@ function usage() {
 if [[ $2 == "" ]] ; then
 	usage
 	exit
-fi
-
-if [[ ! -d $dest ]]; then
- 	#  # Control will enter here if $dest doesn't exist.
-	make_dump
-elif [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
-  # Control will enter here if $dest exists and is not empty.
-  echo #new line
-  echo "WHOAH! This directory exists and is not empty. If you have files of the same NAME and DIFFERENT size in the destination directory they will be overwritten."
-  echo "***Enter 'yyy' to continue***"
-  echo "Enter anything else to cancel."
-  read input
-  if [[ $input == "yyy" ]] ; then
-	  make_dump
-	  	exit
+elif [[ -f $src || -d $src ]] ; then
+	if [[ ! -d $dest ]]; then
+		#  # Control will enter here if $dest doesn't exist.
+		make_dump
+	elif [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
+	  # Control will enter here if $dest exists and is not empty.
+	  echo #new line
+	  echo "WHOAH! This directory exists and is not empty. If you have files of the same NAME and DIFFERENT size in the destination directory they will be overwritten."
+	  echo "***Enter 'yyy' to continue***"
+	  echo "Enter anything else to cancel."
+	  read input
+	  if [[ $input == "yyy" ]] ; then
+		  make_dump
+			exit
+		fi
+	elif [[ "$(ls -A $dest)" == '' ]] ; then
+		#control enters here if destination direcotry exists but is empty.
+		echo "Directory is empty. Safe to copy."
+		make_dump
+	else
+		"Error. Try running rsync by itself. Or give up and use Shotput."
+		exit
 	fi
-elif [[ "$(ls -A $dest)" == '' ]] ; then
-	#control enters here if direcotry exists but is empyty
-	echo "Directory is empty. Safe to copy."
-	make_dump
 else
-	"Error. Try running rsync by itself. Or give up and use Shotput."
+	echo "ERROR! The source directory/file does not exist!"
 	exit
 fi

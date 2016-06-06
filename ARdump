@@ -1,7 +1,7 @@
 #!/bin/bash
 # Quick n' dirty file transfer utility for professional film/TV DIT workflows
 # By Alex Fichera and Rio Velarde, 2016
-# version=1.0.3 - Windows
+# version=1.0.3 - Linux
 src=$1/
 dest=$2
 mail=$3

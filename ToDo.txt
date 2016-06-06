@@ -1,6 +1,0 @@
-- Check if source directory exists and output an error / end the script if it does not.
-- Make it work on single files.
-- Add a flag to surpress logfile creation.
-
-COMPLETE
-- Add warning log to top of error log stating it is not valid. Remove when the checksum is finished.

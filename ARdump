@@ -3,7 +3,7 @@
 # By Alex Fichera and Rio Velarde, 2016
 # Dependencies: rsync, md5deep, email
 
-version=1.0.9 # - Windows
+version='1.1.0 - Windows'
 
 src=$1
 dest=$2
@@ -22,14 +22,6 @@ for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
 	COMMAND ... “$dest” ...
 	fi
 done
-
-thePath=$(basename $src)
-thePath+=":"
-
-finalDest=$dest/$(basename $src)
-logName=$(basename $src)
-# logName+=".$date"
-logDest=$dest/${logName}_LOGS
 
 function make_dump() {
 	mkdir -p $dest
@@ -120,14 +112,28 @@ function make_dump() {
 function usage() {
 	echo "ARdump $version"
 	echo "Usage : ARdump <source> <destination>"
-	echo "ARdump will copy files from one location to another and verify the md5 checksums using"
-	echo "rsync and md5deep. It will output a copy log and an error log."
+	echo "Optional Usage : ARdump <source> <destination> <email>"
+	echo "ARdump will copy files from the source location to the destination location and"
+	echo "verify the md5 checksums created from the source files by rsync and md5deep"
+	echo "matching them with the files in the destination. It will output a copy log and"
+	echo 'an error log. If an email is provided, it will send an email to the given'
+	echo 'address (provided there is an active internet connection) both when the initial'
+	echo 'transfer is complete and when the checksum verification finishes.'
 }
 
 if [[ $2 == "" ]] ; then
 	usage
 	exit
-elif [[ -f $src || -d $src ]] ; then
+elif [[ -e $src ]] ; then
+
+	thePath=$(basename $src)
+	thePath+=":"
+
+	finalDest=$dest/$(basename $src)
+	logName=$(basename $src)
+	# logName+=".$date"
+	logDest=$dest/${logName}_LOGS
+
 	if [[ ! -d $dest ]]; then
 		#  # Control will enter here if $dest doesn't exist.
 		make_dump

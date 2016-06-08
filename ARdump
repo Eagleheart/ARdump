@@ -24,8 +24,8 @@ for file in ./* ; do # Use "./*" ... NEVER bare "*" ...
 done
 
 function make_dump() {
-	mkdir -p $dest
-	mkdir -p $logDest #make required directories if they don't exist
+	
+	mkdir -p $logDest
 	
 	echo "This transfer is from $src to $dest" >> $logDest/${logName}_COPY_LOG.txt
 	echo "It is starting at" $(date) >> $logDest/${logName}_COPY_LOG.txt
@@ -121,7 +121,9 @@ if [[ $2 == "" ]] ; then
 	usage
 	exit
 elif [[ -e $src ]] ; then
-
+	
+	mkdir -p $dest
+	
 	thePath=$(basename $src)
 	thePath+=":"
 
@@ -139,10 +141,7 @@ elif [[ -e $src ]] ; then
 	
 	logDest=$dest/${logName}_LOGS
 
-	if [[ ! -d $dest ]]; then
-		#  # Control will enter here if $dest doesn't exist.
-		make_dump
-	elif [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
+	if [[ -d $dest ]] && [[ "$(ls -A $dest)" ]]; then
 	  # Control will enter here if $dest exists and is not empty.
 	  echo #new line
 	  echo "WHOAH! This directory exists and is not empty. If you have files of the same NAME and DIFFERENT size in the destination directory they will be overwritten."

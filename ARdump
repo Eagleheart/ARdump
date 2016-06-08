@@ -27,10 +27,6 @@ function make_dump() {
 	mkdir -p $dest
 	mkdir -p $logDest #make required directories if they don't exist
 	
-	echo '' | label $thePath > $logDest/path.txt
-	name="$(sed -n -e 's/^.*is //p;q;' $logDest/path.txt)"
-	rm $logDest/path.txt
-	
 	echo "This transfer is from $src to $dest" >> $logDest/${logName}_COPY_LOG.txt
 	echo "It is starting at" $(date) >> $logDest/${logName}_COPY_LOG.txt
 	echo "↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓" >> $logDest/${logName}_COPY_LOG.txt
@@ -129,9 +125,18 @@ elif [[ -e $src ]] ; then
 	thePath=$(basename $src)
 	thePath+=":"
 
-	finalDest=$dest/$(basename $src)
-	logName=$(basename $src)
-	# logName+=".$date"
+	echo '' | label $thePath > $dest/path.txt
+	name="$(sed -n -e 's/^.*is //p;q;' $dest/path.txt)"
+	rm $dest/path.txt
+	
+	logName=$name
+
+	if [[ -z "$name" ]]; then
+		logName=$(basename $src)
+	else
+		src+="/"
+	fi
+	
 	logDest=$dest/${logName}_LOGS
 
 	if [[ ! -d $dest ]]; then

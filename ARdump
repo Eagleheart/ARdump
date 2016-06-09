@@ -127,7 +127,7 @@ elif [[ -e $src ]] ; then
 	thePath=$(basename $src)
 	thePath+=":"
 
-	echo '' | label $thePath > $dest/path.txt
+	echo '' | label $thePath > $dest/path.txt 2>&1
 	name="$(sed -n -e 's/^.*is //p;q;' $dest/path.txt)"
 	rm $dest/path.txt
 	
